@@ -18,6 +18,9 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+// Maximum size 
+#define ARG_MAX 4000
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -28,8 +31,15 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  printf("PROCESS_EXE\n");
+  
+  char *fname_args, *save_ptr;
+
+
+
   char *fn_copy;
   tid_t tid;
+  int argc = 0;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,8 +48,23 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+
+
+  fname_args = malloc(strlen(file_name)+1);
+
+
+  // splits the filename to be processed into separate arguments
+  strlcpy (fname_args, file_name, strlen(file_name)+1);
+  fname_args = strtok_r (fname_args," ",&save_ptr);
+
+  printf("\nhi1\n");
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fname_args, PRI_DEFAULT, start_process, fn_copy);
+
+  printf("\nhi2\n");
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -51,6 +76,11 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
+
+  printf("START_PROCESS \n\n");
+  printf("\n\n fname %s \n\n", file_name_);
+
+
   struct intr_frame if_;
   bool success;
 
@@ -60,11 +90,12 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  printf("SETUP SUCCESSFUL\n");
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  // if (!success) 
+  //   thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -86,15 +117,24 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid ) 
 {
-  return -1;
+  printf("PROCESS_WAIT\n");
+  
+  // return -1;
+
+  // Temporary implementation to let child process finish setup
+  while(true){
+    thread_yield();
+  }
 }
 
 /* Free the current process's resources. */
 void
 process_exit (void)
 {
+
+  // printf("PROCESS_EXIT\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -122,6 +162,8 @@ process_exit (void)
 void
 process_activate (void)
 {
+  // printf("PROCESS_ACTIVATE\n");
+
   struct thread *t = thread_current ();
 
   /* Activate thread's page tables. */
@@ -302,6 +344,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
+  printf("SETTING UP STACK\n");
   if (!setup_stack (esp))
     goto done;
 
@@ -313,6 +356,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  // printf("SETUP SUCCESSFUL\n");
+
   return success;
 }
 
@@ -441,6 +486,13 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  // char my_string[8] = "CSCI350\0";
+  // *esp -= sizeof(char) * 8;
+  // memcpy(*esp, my_string, sizeof(char) * 8);
+
+  // hex_dump((uintptr_t)*esp, *esp, sizeof(char) * 8, true);
+
   return success;
 }
 
