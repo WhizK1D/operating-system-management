@@ -57,13 +57,14 @@ process_execute (const char *file_name)
   strlcpy (fname_args, file_name, strlen(file_name)+1);
   fname_args = strtok_r (fname_args," ",&save_ptr);
 
-  printf("\nhi1\n");
 
+  printf("\nhi0\n");
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (fname_args, PRI_DEFAULT, start_process, fn_copy);
 
-  printf("\nhi2\n");
+  printf("\nhi22\n");
+
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -94,6 +95,9 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+
+  printf("\nhi2\n");
+
   // if (!success) 
   //   thread_exit ();
 
@@ -105,6 +109,8 @@ start_process (void *file_name_)
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
+
+
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -237,7 +243,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char *file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -263,8 +269,27 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+
+
+
+
+
+
+  char * fn_cp = malloc (strlen(file_name)+1);
+  strlcpy(fn_cp, file_name, strlen(file_name)+1);
+  
+  char * save_ptr;
+  fn_cp = strtok_r(fn_cp," ",&save_ptr);
+
+
+
+
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (fn_cp);
+  
+  free(fn_cp);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -344,8 +369,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  printf("SETTING UP STACK\n");
-  if (!setup_stack (esp))
+  printf("SETTING UP STACK\n\n");
+  if (!setup_stack (esp, file))
     goto done;
 
   /* Start address. */
@@ -472,7 +497,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, char *file_name) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -486,6 +511,24 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  // printf("\n\n fname %s \n\n", file_name);
+
+
+  char *token, *save_ptr;
+  int argc = 0,i;
+
+  char * copy = malloc(strlen(file_name)+1);
+  strlcpy (copy, file_name, strlen(file_name)+1);
+
+
+  for (token = strtok_r (copy, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr))
+    argc++;
+
+
+	printf("argc : %i \n\n", argc);
+
 
   // char my_string[8] = "CSCI350\0";
   // *esp -= sizeof(char) * 8;
