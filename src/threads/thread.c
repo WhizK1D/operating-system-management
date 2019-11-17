@@ -15,6 +15,13 @@
 #include "userprog/process.h"
 #endif
 
+/* New members for Project-2 */
+#define DEFAULT_EXIT_CODE -9 /* Defined across multiple files */
+#define FD_MIN 2
+
+struct lock file_lock; /* Lock to access files by process */
+/* End of new members section */
+/**/
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -37,8 +44,24 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+/* Helper functions for Project-2 */
+
+/* Abstractions to access file_lock from other code in project */
+void acquire_file_lock()
+{
+  lock_acquire(&file_lock);
+}
+
+void release_file_lock()
+{
+  lock_release(&file_lock);
+}
+
+
+/* End of Helper functions for Project-2 */
+
 /* Stack frame for kernel_thread(). */
-struct kernel_thread_frame 
+struct kernel_thread_frame
   {
     void *eip;                  /* Return address. */
     thread_func *function;      /* Function to call. */
@@ -85,10 +108,11 @@ static tid_t allocate_tid (void);
    It is not safe to call thread_current() until this function
    finishes. */
 void
-thread_init (void) 
+thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
+  lock_init(&file_lock);
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
@@ -170,6 +194,7 @@ thread_create (const char *name, int priority,
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
+  struct child *c = malloc(sizeof(*c));
   tid_t tid;
 
   ASSERT (function != NULL);
@@ -182,6 +207,14 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+
+  /* Initialize allocated child */
+  c -> tid = tid;
+  c -> exit_code = t -> exit_code;
+  c -> alive = true;
+
+  /* Push initialized child into list of children of t*/
+  list_push_back(&running_thread() -> child_processes, &c -> elem);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -285,6 +318,14 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
+
+  /* Empty memory for child processes before exiting */
+  while(!list_empty(&thread_current() -> child_processes))
+  {
+    struct file *f = list_entry(list_pop_front(&thread_current() -> child_processes),
+        struct child, elem);
+    free(f);
+  }
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
@@ -463,6 +504,17 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  /* New initializations for Project-2 */
+  list_init(&t -> file_list);
+  list_init(&t -> child_processes);
+  sema_init(&t -> child_lock, 0);
+
+  t -> fd = FD_MIN;
+  t -> exit_code = DEFAULT_EXIT_CODE;
+  t -> wait_child_id = 0;
+  t -> success = false;
+  t -> parent = running_thread();
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
