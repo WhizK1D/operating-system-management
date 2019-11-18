@@ -33,13 +33,11 @@ process_execute (const char *file_name)
 {
   printf("PROCESS_EXE\n");
   
-  char *fname_args, *save_ptr;
-
-
+  char *fname_args = malloc(strlen(file_name)+1);
+  char *save_ptr;
 
   char *fn_copy;
   tid_t tid;
-  int argc = 0;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -49,21 +47,13 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
 
-
-  fname_args = malloc(strlen(file_name)+1);
-
-
-  // splits the filename to be processed into separate arguments
   strlcpy (fname_args, file_name, strlen(file_name)+1);
   fname_args = strtok_r (fname_args," ",&save_ptr);
 
 
-  printf("\nhi0\n");
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (fname_args, PRI_DEFAULT, start_process, fn_copy);
-
-  printf("\nhi22\n");
 
 
   if (tid == TID_ERROR)
@@ -275,10 +265,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 
 
-  char * fn_cp = malloc (strlen(file_name)+1);
+  char *fn_cp = malloc (strlen(file_name)+1);
   strlcpy(fn_cp, file_name, strlen(file_name)+1);
   
-  char * save_ptr;
+  char *save_ptr;
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
 
 
@@ -370,7 +360,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Set up stack. */
   printf("SETTING UP STACK\n\n");
-  if (!setup_stack (esp, file))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -516,25 +506,35 @@ setup_stack (void **esp, char *file_name)
 
 
   char *token, *save_ptr;
-  int argc = 0,i;
+  int argc = 0;
 
-  char * copy = malloc(strlen(file_name)+1);
-  strlcpy (copy, file_name, strlen(file_name)+1);
+  // printf("len %i \n", strlen(file_name));
+
+  // char *copy = malloc(strlen(file_name)+1);
+  // strlcpy (copy, file_name, strlen(file_name)+1);
+
+  token = strtok_r (file_name, " ", &save_ptr);
 
 
-  for (token = strtok_r (copy, " ", &save_ptr); token != NULL;
-    token = strtok_r (NULL, " ", &save_ptr))
+  while(token != NULL){
+	token = strtok_r (NULL, " ", &save_ptr);
     argc++;
+  }
+
+  // for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+  //   token = strtok_r (NULL, " ", &save_ptr))
+  //   argc++;
 
 
 	printf("argc : %i \n\n", argc);
 
 
-  // char my_string[8] = "CSCI350\0";
-  // *esp -= sizeof(char) * 8;
-  // memcpy(*esp, my_string, sizeof(char) * 8);
 
-  // hex_dump((uintptr_t)*esp, *esp, sizeof(char) * 8, true);
+
+
+
+
+
 
   return success;
 }
