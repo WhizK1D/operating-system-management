@@ -50,7 +50,7 @@ process_execute (const char *file_name)
   temp_file_name = strtok_r(temp_file_name, " ", &save);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (temp_file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
 
@@ -166,22 +166,23 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
+  printf("Entered process_exit()\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
   int ret_value = -1;
-
   if (cur -> exit_code == DEFAULT_EXIT_CODE)
   {
+    printf("Calling exit()\n");
     exit(ret_value); /* Something went wrong so return with -1 */
   }
-  else
-  {
-    ret_value = cur -> exit_code; /* Set the correct return value */
-    printf("%s: exit(%d)\n", cur -> name, ret_value);
-  }
+
+  ret_value = cur -> exit_code; /* Set the correct return value */
+  printf("%s: exit(%d)\n", cur -> name, ret_value);
+
 
   /* Free up allocated resources */
   acquire_file_lock();
+  printf("Debug print\n");
   file_close(thread_current() -> fp);
   close_file(-1);
   release_file_lock();
@@ -201,6 +202,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    printf("process_exit() successful\n");
 }
 
 /* Sets up the CPU for running user code in the current

@@ -112,10 +112,12 @@ thread_init (void)
 {
   ASSERT (intr_get_level () == INTR_OFF);
 
-  lock_init(&file_lock);
+
   lock_init (&tid_lock);
+  lock_init (&file_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -262,7 +264,7 @@ thread_block (void)
    it may expect that it can atomically unblock a thread and
    update other data. */
 void
-thread_unblock (struct thread *t) 
+thread_unblock (struct thread *t)
 {
   enum intr_level old_level;
 
@@ -311,18 +313,20 @@ thread_tid (void)
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
-thread_exit (void) 
+thread_exit (void)
 {
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
   process_exit ();
 #endif
+printf("Entered thread\n");
 
   /* Empty memory for child processes before exiting */
   while(!list_empty(&thread_current() -> child_processes))
   {
-    struct file *f = list_entry(list_pop_front(&thread_current() -> child_processes),
+    struct file *f = list_entry(list_pop_front(
+        &thread_current() -> child_processes),
         struct child, elem);
     free(f);
   }
@@ -330,9 +334,14 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+  printf("Freed memory\n");
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  printf("Disabled interrupts\n");
+  list_remove (&(thread_current() -> allelem));
+  // list_remove (&(thread_current() -> child_processes));
+  printf("Removed item from thread\n");
   thread_current ()->status = THREAD_DYING;
+  // printf("Updated thread status\n");
   schedule ();
   NOT_REACHED ();
 }
@@ -568,7 +577,7 @@ void
 thread_schedule_tail (struct thread *prev)
 {
   struct thread *cur = running_thread ();
-  
+
   ASSERT (intr_get_level () == INTR_OFF);
 
   /* Mark us as running. */
@@ -587,7 +596,7 @@ thread_schedule_tail (struct thread *prev)
      pull out the rug under itself.  (We don't free
      initial_thread because its memory was not obtained via
      palloc().) */
-  if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
+  if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread)
     {
       ASSERT (prev != cur);
       palloc_free_page (prev);
@@ -615,6 +624,7 @@ schedule (void)
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
+  // printf("Schedule completed\n");
 }
 
 /* Returns a tid to use for a new thread. */
