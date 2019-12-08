@@ -196,7 +196,6 @@ thread_create (const char *name, int priority,
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
-  struct child *c = malloc(sizeof(*c));
   tid_t tid;
 
   ASSERT (function != NULL);
@@ -211,6 +210,7 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   /* Initialize allocated child */
+  struct child *c = malloc(sizeof(*c));
   c -> tid = tid;
   c -> exit_code = t -> exit_code;
   c -> alive = true;
@@ -320,7 +320,7 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
-printf("Entered thread\n");
+// printf("Entered thread\n");
 
   /* Empty memory for child processes before exiting */
   while(!list_empty(&thread_current() -> child_processes))
@@ -334,15 +334,12 @@ printf("Entered thread\n");
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  printf("Freed memory\n");
+  // printf("Freed memory\n");
   intr_disable ();
-  printf("Disabled interrupts\n");
-  list_remove (&(thread_current() -> allelem));
-  // list_remove (&(thread_current() -> child_processes));
-  printf("Removed item from thread\n");
-  thread_current ()->status = THREAD_DYING;
+  list_remove (&thread_current() -> allelem);
+  thread_current()->status = THREAD_DYING;
   // printf("Updated thread status\n");
-  schedule ();
+  schedule();
   NOT_REACHED ();
 }
 

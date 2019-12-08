@@ -61,10 +61,7 @@ process_execute (const char *file_name)
   {
     return -1;
   }
-  else
-  {
-    return tid;
-  }
+  return tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -147,8 +144,7 @@ process_wait (tid_t child_tid UNUSED)
   {
     return ret_value;
   }
-  else
-  {
+
     thread_current() -> wait_child_id = c -> tid;
 
     if(c -> alive)
@@ -157,7 +153,7 @@ process_wait (tid_t child_tid UNUSED)
     }
 
     ret_value = c -> exit_code;
-  }
+    list_remove(temp);
 
   return ret_value;
 }
@@ -166,14 +162,13 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
-  printf("Entered process_exit()\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
   int ret_value = -1;
   if (cur -> exit_code == DEFAULT_EXIT_CODE)
   {
-    printf("Calling exit()\n");
-    exit(ret_value); /* Something went wrong so return with -1 */
+    // printf("Calling exit()\n");
+    exit(-1); /* Something went wrong so return with -1 */
   }
 
   ret_value = cur -> exit_code; /* Set the correct return value */
@@ -182,7 +177,6 @@ process_exit (void)
 
   /* Free up allocated resources */
   acquire_file_lock();
-  printf("Debug print\n");
   file_close(thread_current() -> fp);
   close_file(-1);
   release_file_lock();
@@ -202,7 +196,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    printf("process_exit() successful\n");
 }
 
 /* Sets up the CPU for running user code in the current
@@ -284,7 +277,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char* cmd_args);
+static bool setup_stack (void **esp, char* arg_list);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -401,7 +394,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, file_name))
+  if (!setup_stack(esp, file_name))
     goto done;
 
   /* Start address. */
@@ -552,17 +545,20 @@ setup_stack (void **esp, char* arg_list)
   for (token = strtok_r(temp_file_name, " ", &save);
       token != NULL;
       token = strtok_r(NULL, " ", &save))
-      arg_count += 1;
+      {
+        arg_count++;
+      }
 
   int *addr = calloc(arg_count, sizeof(int));
 
   for(i=0, token = strtok_r(arg_list, " ", &save);
     token != NULL;
-    token = strtok_r(NULL, " ", &save), i++)
+    token = strtok_r(NULL, " ", &save))
     {
-      *esp -= (strlen(token) + 1);
+      *esp = *esp - (strlen(token) + 1);
       memcpy(*esp, token, strlen(token) + 1);
-      addr[i] = *esp;
+      addr[i++] = *esp;
+      // i++;
     }
 
   while((int)*esp % 4 != 0)
@@ -572,25 +568,25 @@ setup_stack (void **esp, char* arg_list)
     memcpy(*esp, &t, sizeof(char));
   }
 
-  *esp -= sizeof(int);
+  *esp = *esp - sizeof(int);
   memcpy(*esp, &start, sizeof(int));
 
   /* Pick and copy arguments from the right */
   for(i = arg_count - 1; i >= 0; i--)
   {
-    *esp -= sizeof(int);
+    *esp = *esp - sizeof(int);
     memcpy(*esp, &addr[i], sizeof(int));
   }
 
   temp = *esp;
 
-  *esp -= sizeof(int);
+  *esp = *esp - sizeof(int);
   memcpy(*esp, &temp, sizeof(int));
 
-  *esp -= sizeof(int);
+  *esp = *esp - sizeof(int);
   memcpy(*esp, &arg_count, sizeof(int));
 
-  *esp -= sizeof(int);
+  *esp = *esp - sizeof(int);
   memcpy(*esp, &start, sizeof(int));
 
   /* Free allocated mem objects */
